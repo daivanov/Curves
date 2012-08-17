@@ -18,7 +18,7 @@
  */
 
 #include <QtCore/qmath.h>
-#include <QVector3D>
+#include <QPointF>
 #include <QGraphicsScene>
 #include <QGraphicsLineItem>
 #include <QGraphicsSceneMouseEvent>

@@ -22,8 +22,8 @@
 
 #include <QGraphicsView>
 #include <QVector>
-#include <QPointF>
 
+class QPointF;
 class QGraphicsScene;
 
 class Pane : public QGraphicsView
@@ -38,8 +38,6 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
 private:
-    template <class Type>
-    QVector<Type> smooth(const QVector<Type> &points, int size = 3);
     QVector<qreal> direction(const QVector<QPointF> &points, bool derivative);
     QVector<int> detectSpikes(const QVector<qreal> &directions, int tinySegment = 4);
     void analyse();
