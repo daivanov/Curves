@@ -34,6 +34,8 @@ public:
 
     qreal fit(const PointArray<256> &points, PointArray<256> &curve);
     PointArray<256> curve(const PointArray<256> &curve, int count);
+    void splitCasteljau(const PointArray<256> &curve, qreal t,
+        PointArray<256> &left, PointArray<256> &right);
 
 private:
     static qreal bins[SPLINE_LEN];
@@ -43,6 +45,9 @@ private:
     static void point(const qreal *pxy, qreal t, qreal *xy);
     static void curve(const qreal *pxy, int num, qreal *xy);
     static void func(double *p, double *hx, int m, int n, void *data);
+
+    static void splitCasteljau(const qreal *pxy,  qreal t,
+        qreal *pxy1, qreal *pxy2);
 };
 
 #endif

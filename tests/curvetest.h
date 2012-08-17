@@ -36,6 +36,7 @@ protected:
 private slots:
     void initTestCase();
     void testCurve();
+    void testSplit();
     void cleanupTestCase();
 
 private:

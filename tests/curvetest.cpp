@@ -68,6 +68,24 @@ void CurveTest::testCurve()
     saveToFile(points2, true);
 }
 
+void CurveTest::testSplit()
+{
+    /* Original Bezier curve */
+    PointArray<256> curve;
+    curve << QPointF(0.0, 0.0) << QPointF(-0.25, 1.0)
+          << QPointF(1.25, -1.0) << QPointF(1.0, 0.0);
+    PointArray<256> left, right;
+
+    m_fitter->splitCasteljau(curve, 0.3, left, right);
+
+    QCOMPARE(curve[0], left[0]);
+    QCOMPARE(curve[1], left[1]);
+    QCOMPARE(left[SPLINE_LEN * 2 - 2], right[0]);
+    QCOMPARE(left[SPLINE_LEN * 2 - 1], right[1]);
+    QCOMPARE(curve[SPLINE_LEN * 2 - 2], right[SPLINE_LEN * 2 - 2]);
+    QCOMPARE(curve[SPLINE_LEN * 2 - 1], right[SPLINE_LEN * 2 -1]);
+}
+
 void CurveTest::saveToFile(const PointArray<256> &points, bool append)
 {
     QFile file(DUMP_FILE);
