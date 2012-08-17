@@ -71,8 +71,7 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
 
         Q_ASSERT(mouseEvent);
 
-        QLineF line(m_points.last(), mouseEvent->scenePos());
-        m_scene->addLine(line, QPen(Qt::yellow));
+        addLine(m_points.last(), mouseEvent->scenePos(), Qt::yellow);
         m_points << mouseEvent->scenePos();
     }
         break;
@@ -158,6 +157,20 @@ QVarLengthArray<int,128> Pane::detectSpikes(const QVarLengthArray<qreal,128> &di
     return spikes;
 }
 
+void Pane::addEllipse(const QPointF &point, const QColor &color)
+{
+    QGraphicsEllipseItem *ellipse =
+        new QGraphicsEllipseItem(point.x() - 3.0, point.y() - 3.0, 6, 6);
+    ellipse->setPen(QPen(color));
+    m_scene->addItem(ellipse);
+}
+
+void Pane::addLine(const QPointF &point0, const QPointF &point1, const QColor &color)
+{
+    QLineF line(point0, point1);
+    m_scene->addLine(line, QPen(color));
+}
+
 void Pane::analyse()
 {
     QVarLengthArray<qreal,128> angles = direction(m_points, true);
@@ -165,9 +178,6 @@ void Pane::analyse()
 
     foreach (int spike, spikes) {
         QPointF point = m_points.at(spike + 1);
-        QGraphicsEllipseItem *ellipse =
-            new QGraphicsEllipseItem(point.x() - 5.0, point.y() - 5.0, 10, 10);
-        ellipse->setBrush(Qt::red);
-        m_scene->addItem(ellipse);
+        addEllipse(point, Qt::red);
     }
 }

@@ -40,6 +40,9 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
 private:
+    void addEllipse(const QPointF &point, const QColor &color);
+    void addLine(const QPointF &point0, const QPointF &point1, const QColor &color);
+
     QVarLengthArray<qreal,128> direction(const PointArray<256> &points, bool derivative);
     QVarLengthArray<int,128> detectSpikes(const QVarLengthArray<qreal,128> &directions, int tinySegment = 4);
     void analyse();
