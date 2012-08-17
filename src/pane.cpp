@@ -89,9 +89,9 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
     return QObject::eventFilter(obj, event);
 }
 
-QVector<qreal> Pane::direction(const QVector<QPointF> &points, bool derivative)
+QVarLengthArray<qreal,128> Pane::direction(const QVector<QPointF> &points, bool derivative)
 {
-    QVector<qreal> angles;
+    QVarLengthArray<qreal,128> angles;
 
     QPointF p0 = (points.count() > 0 ? points.first() : QPointF(0.0, 0.0));
     qreal angle0 = 0.0;
@@ -128,7 +128,7 @@ QVector<qreal> Pane::direction(const QVector<QPointF> &points, bool derivative)
     return angles;
 }
 
-QVector<int> Pane::detectSpikes(const QVector<qreal> &directions,
+QVarLengthArray<int,128> Pane::detectSpikes(const QVarLengthArray<qreal,128> &directions,
     int tinySegment)
 {
     int cnt = directions.count();
@@ -142,16 +142,16 @@ QVector<int> Pane::detectSpikes(const QVector<qreal> &directions,
         stddev += (direction - mean) * (direction - mean) / cnt;
     stddev = qSqrt(stddev);
 
-    QVector<int> spikes;
-    spikes << 0;
+    QVarLengthArray<int,128> spikes;
+    spikes << -1;
     for (int i = 0; i < directions.count(); ++i) {
         if (qAbs(directions.at(i) - mean) > stddev) {
-            if (i - spikes.last() > tinySegment)
+            if (i - spikes.at(spikes.count() - 1) > tinySegment)
                 spikes << i;
         }
     }
 
-    if ((directions.count() - 1) - spikes.last() < tinySegment)
+    if ((directions.count() - 1) - spikes.at(spikes.count() - 1) < tinySegment)
         spikes.remove(spikes.count() - 1);
     spikes << directions.count() - 1;
 
@@ -160,8 +160,8 @@ QVector<int> Pane::detectSpikes(const QVector<qreal> &directions,
 
 void Pane::analyse()
 {
-    QVector<qreal> angles = direction(m_points, true);
-    QVector<int> spikes = detectSpikes(angles);
+    QVarLengthArray<qreal,128> angles = direction(m_points, true);
+    QVarLengthArray<int,128> spikes = detectSpikes(angles);
 
     foreach (int spike, spikes) {
         QPointF point = m_points.at(spike + 1);

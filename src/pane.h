@@ -21,6 +21,7 @@
 #define PANE_H
 
 #include <QGraphicsView>
+#include <QVarLengthArray>
 #include <QVector>
 
 class QPointF;
@@ -38,13 +39,13 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
 private:
-    QVector<qreal> direction(const QVector<QPointF> &points, bool derivative);
-    QVector<int> detectSpikes(const QVector<qreal> &directions, int tinySegment = 4);
+    QVarLengthArray<qreal,128> direction(const QVector<QPointF> &points, bool derivative);
+    QVarLengthArray<int,128> detectSpikes(const QVarLengthArray<qreal,128> &directions, int tinySegment = 4);
     void analyse();
 
     QGraphicsScene *m_scene;
     QVector<QPointF> m_points;
-    QVector<qreal> m_angles;
+    QVarLengthArray<qreal,128> m_angles;
     bool m_active;
     const qreal tolerance;
 };
