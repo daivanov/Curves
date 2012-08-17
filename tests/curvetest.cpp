@@ -36,15 +36,15 @@ void CurveTest::initTestCase()
 void CurveTest::testCurve()
 {
     /* Original Bezier curve */
-    QVector<QPointF> curve;
+    PointArray<256> curve;
     curve << QPointF(0.0, 0.0) << QPointF(-0.25, 1.0)
           << QPointF(1.25, -1.0) << QPointF(1.0, 0.0);
 
     /* Original Bezier curve points */
-    QVector<QPointF> points = m_fitter->curve(curve, CURVE_LENGTH);
+    PointArray<256> points = m_fitter->curve(curve, CURVE_LENGTH);
 
     /* Computed Bezier curve */
-    QVector<QPointF> curve2;
+    PointArray<256> curve2;
     qreal err = m_fitter->fit(points, curve2);
     QVERIFY(err < 1e-4);
     qreal stdCurve = 0;
@@ -56,7 +56,7 @@ void CurveTest::testCurve()
     QVERIFY(stdCurve < 1e-4);
 
     /* Computed Bezier curve points */
-    QVector<QPointF> points2 = m_fitter->curve(curve2, CURVE_LENGTH);
+    PointArray<256> points2 = m_fitter->curve(curve2, CURVE_LENGTH);
     qreal stdPoints = 0;
     for (int i = 0; i < points.count() && i < points2.count(); ++i) {
         QPointF diff = points.at(i) - points2.at(i);
@@ -68,7 +68,7 @@ void CurveTest::testCurve()
     saveToFile(points2, true);
 }
 
-void CurveTest::saveToFile(const QVector<QPointF> &points, bool append)
+void CurveTest::saveToFile(const PointArray<256> &points, bool append)
 {
     QFile file(DUMP_FILE);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Text |

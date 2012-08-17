@@ -31,7 +31,7 @@ public:
     CurveTest(QObject *parent = 0);
 
 protected:
-    void saveToFile(const QVector<QPointF> &points, bool append);
+    void saveToFile(const PointArray<256> &points, bool append);
 
 private slots:
     void initTestCase();

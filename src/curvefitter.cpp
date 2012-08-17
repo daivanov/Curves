@@ -65,27 +65,12 @@ void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
     }
 }
 
-QVector<QPointF> CurveFitter::curve(const QVector<QPointF> &curvePoints, int count)
+PointArray<256> CurveFitter::curve(const PointArray<256> &curvePoints, int count)
 {
-    qreal *pxy = new qreal[SPLINE_SIZE];
+    PointArray<256> points;
+    points.resize(2 * count);
 
-    for (int i = 0; i < SPLINE_SIZE; i += 2) {
-        const QPointF &point = curvePoints.at(i / 2);
-        pxy[i] = point.x();
-        pxy[i + 1] = point.y();
-    }
-
-    qreal *x = new qreal[2 * count];
-
-    curve(pxy, count, x);
-
-    QVector<QPointF> points;
-    for (int i = 0; i < 2 * count; i += 2) {
-        points << QPointF(x[i], x[i + 1]);
-    }
-
-    delete [] pxy;
-    delete [] x;
+    curve(curvePoints.data(), count, points.data());
 
     return points;
 }
@@ -105,19 +90,14 @@ void CurveFitter::func(double *p, double *hx, int m, int n, void *data)
     curve(pxy, n / 2, hx);
 }
 
-qreal CurveFitter::fit(const QVector<QPointF> &points, QVector<QPointF> &curve)
+qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
 {
-    int sz = 2 * points.count();
-
     /* Init input data */
-    qreal *x = (qreal*)calloc(sz, sizeof(qreal));
-    for (int i = 0; i < points.count(); ++i) {
-        const QPointF &point = points.at(i);
-        x[2 * i] = point.x();
-        x[2 * i + 1] = point.y();
-    }
+    int sz = 2 * points.count();
+    qreal *x = const_cast<qreal*>(points.data());
 
-    qreal *pxy = (qreal*)calloc(SPLINE_SIZE, sizeof(qreal));
+    curve.resize(SPLINE_SIZE);
+    qreal *pxy = curve.data();
 
     qreal segmentLen = (sz / (SPLINE_LEN - 1));
     /* Init middle points of Bezier curve */
@@ -156,13 +136,6 @@ qreal CurveFitter::fit(const QVector<QPointF> &points, QVector<QPointF> &curve)
     int n = sz;
     dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
         NULL, pxy);
-
-    curve.clear();
-    for (int i = 0; i < SPLINE_SIZE; i += 2)
-        curve << QPointF(pxy[i], pxy[i + 1]);
-
-    free(x);
-    free(pxy);
 
     qDebug() << "Termination reason" << info[6] << "after" << info[5] << "iterations";
     /* Residuals */

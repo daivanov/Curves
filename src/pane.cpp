@@ -89,7 +89,7 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
     return QObject::eventFilter(obj, event);
 }
 
-QVarLengthArray<qreal,128> Pane::direction(const QVector<QPointF> &points, bool derivative)
+QVarLengthArray<qreal,128> Pane::direction(const PointArray<256> &points, bool derivative)
 {
     QVarLengthArray<qreal,128> angles;
 

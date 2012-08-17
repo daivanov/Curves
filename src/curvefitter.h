@@ -21,8 +21,8 @@
 #define CURVEFITTER_H
 
 #include <QtGlobal>
-#include <QVector>
-#include <QPointF>
+
+#include "pointarray.h"
 
 #define SPLINE_LEN 4
 
@@ -32,8 +32,8 @@ public:
     CurveFitter();
     ~CurveFitter();
 
-    qreal fit(const QVector<QPointF> &points, QVector<QPointF> &curve);
-    QVector<QPointF> curve(const QVector<QPointF> &curve, int count);
+    qreal fit(const PointArray<256> &points, PointArray<256> &curve);
+    PointArray<256> curve(const PointArray<256> &curve, int count);
 
 private:
     static qreal bins[SPLINE_LEN];

@@ -22,7 +22,8 @@
 
 #include <QGraphicsView>
 #include <QVarLengthArray>
-#include <QVector>
+
+#include "pointarray.h"
 
 class QPointF;
 class QGraphicsScene;
@@ -39,12 +40,12 @@ protected:
     bool eventFilter(QObject *obj, QEvent *event);
 
 private:
-    QVarLengthArray<qreal,128> direction(const QVector<QPointF> &points, bool derivative);
+    QVarLengthArray<qreal,128> direction(const PointArray<256> &points, bool derivative);
     QVarLengthArray<int,128> detectSpikes(const QVarLengthArray<qreal,128> &directions, int tinySegment = 4);
     void analyse();
 
     QGraphicsScene *m_scene;
-    QVector<QPointF> m_points;
+    PointArray<256> m_points;
     QVarLengthArray<qreal,128> m_angles;
     bool m_active;
     const qreal tolerance;
