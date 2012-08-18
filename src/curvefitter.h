@@ -64,6 +64,8 @@ private:
 
     static void splitCasteljau(const qreal *pxy,  qreal t,
         qreal *pxy1, qreal *pxy2);
+
+    void chordLengthParam(int len, const qreal *x, qreal *ts);
 };
 
 #endif

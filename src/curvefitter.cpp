@@ -130,6 +130,24 @@ void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
     curve(iData->pxy, n / 2, hx, iData->ts);
 }
 
+void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts)
+{
+    Q_ASSERT(x);
+    Q_ASSERT(ts);
+
+    /* Cumulative chord distances */
+    ts[0] = 0.0;
+    for (int i = 1; i < len; ++i) {
+        qreal dx = x[2 * i] - x[2 * i - 2];
+        qreal dy = x[2 * i + 1] - x[2 * i - 1];
+        ts[i] = ts[i - 1] + qSqrt(dx * dx + dy * dy);
+    }
+
+    /* Normalized cumulative chord distances */
+    for (int i = 1; i < len; ++i)
+        ts[i] /= ts[len - 1];
+}
+
 qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
 {
     /* Init input data */
@@ -137,20 +155,9 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     qreal *x = const_cast<qreal*>(points.data());
 
     InternalData data(sz / 2);
-    data.ts[0] = 0.0;
-    /* Cumulative distances */
-    for (int i = 1; i < sz / 2; ++i) {
-        qreal dx = x[2 * i] - x[2 * i - 2];
-        qreal dy = x[2 * i + 1] - x[2 * i - 1];
-        data.ts[i] = data.ts[i - 1] + qSqrt(dx * dx + dy * dy);
-    }
-    /* Normalized cumulative distances */
-    for (int i = 1; i < sz / 2; ++i) {
-        data.ts[i] /= data.ts[sz / 2 - 1];
-    }
-
     curve.resize(SPLINE_SIZE);
     data.pxy = curve.data();
+    chordLengthParam(sz / 2, x, data.ts);
 
     qreal segmentLen = (sz / (SPLINE_LEN - 1));
     /* Init middle points of Bezier curve */
@@ -194,14 +201,39 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     qreal *p = data.pxy + 2;
     int m = SPLINE_SIZE - 2 * 2;
     int n = sz;
-    dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
-        NULL, &data);
+    qreal fnorm;
 
-    /* Residuals */
-    qreal fnorm = info[1] / sz;
-    qDebug() << "Termination reason" << info[6]
-             << "after" << info[5] << "iterations"
-             << "error" << fnorm;
+    qreal *hx = 0;
+    qreal *ts = 0;
+
+    for (int i = 0; i < 2; ++i) {
+        dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
+            NULL, &data);
+
+        /* Residuals */
+        fnorm = info[1] / sz;
+        qDebug() << "Termination reason" << info[6]
+                 << "after" << info[5] << "iterations"
+                 << "error" << fnorm;
+
+        if (fnorm > 1.0) {
+            if (!hx)
+                hx = new qreal[sz];
+            CurveFitter::curve(data.pxy, sz / 2, hx, data.ts);
+            if (!ts)
+                ts = new qreal[sz / 2];
+            chordLengthParam(sz / 2, hx, ts);
+            /* Update spline points */
+            for (int i = 1; i < sz / 2 - 1; ++i) {
+                data.ts[i] *= (data.ts[i] / ts[i]);
+            }
+        }
+    }
+
+    if (hx)
+        delete [] hx;
+    if (ts)
+        delete [] ts;
 
     return fnorm;
 }
