@@ -38,12 +38,28 @@ public:
         PointArray<256> &left, PointArray<256> &right);
 
 private:
+    class InternalData
+    {
+    public:
+        InternalData(int size = 0) : pxy(0), ts(0) {
+            if (size > 0)
+                ts = new qreal[size];
+        }
+        ~InternalData() {
+            if (ts)
+                delete [] ts;
+        }
+
+        qreal *pxy; /* Bezier spline of size SPLINE_SIZE */
+        qreal *ts;  /* Sample points of size n */
+    };
+
     static qreal bins[SPLINE_LEN];
     static int refCount;
 
     void initBins();
     static void point(const qreal *pxy, qreal t, qreal *xy);
-    static void curve(const qreal *pxy, int num, qreal *xy);
+    static void curve(const qreal *pxy, int num, qreal *xy, const qreal *ts = 0);
     static void func(double *p, double *hx, int m, int n, void *data);
 
     static void splitCasteljau(const qreal *pxy,  qreal t,

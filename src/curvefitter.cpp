@@ -17,7 +17,7 @@
  * License along with Curves. If not, see http://www.gnu.org/licenses/.
  */
 
-#include <math.h>
+#include <QtCore/qmath.h>
 #include <levmar.h>
 #include <QDebug>
 
@@ -58,8 +58,8 @@ void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
     int i;
     const qreal *pxyi;
     for (i = 0, pxyi = pxy; i < SPLINE_LEN; ++i, pxyi += 2) {
-        qreal multiplier = bins[i] * pow(t, i) *
-            pow(1 - t, SPLINE_LEN - 1 - i);
+        qreal multiplier = bins[i] * qPow(t, i) *
+            qPow(1 - t, SPLINE_LEN - 1 - i);
         xy[0] += multiplier * pxyi[0];
         xy[1] += multiplier * pxyi[1];
     }
@@ -99,7 +99,7 @@ PointArray<256> CurveFitter::curve(const PointArray<256> &curvePoints, int count
     return points;
 }
 
-void CurveFitter::curve(const qreal *pxy, int num, qreal *xy)
+void CurveFitter::curve(const qreal *pxy, int num, qreal *xy, const qreal *ts)
 {
     qreal spline1[SPLINE_SIZE], spline2[SPLINE_SIZE], spline3[SPLINE_SIZE];
     qreal *pleft = spline1, *ptmp = spline2, *pright = spline3;
@@ -107,10 +107,16 @@ void CurveFitter::curve(const qreal *pxy, int num, qreal *xy)
     int i; qreal *cxy;
     /* Initial point */
     memcpy(xy, pxy, sizeof(qreal) * 2);
-    /* Last point  */
+    /* Last point */
     memcpy(xy + 2 * (num - 1), pxy + 2 * (SPLINE_LEN - 1), sizeof(qreal) * 2);
+    /* Other points */
+    qreal t;
     for (i = 1, cxy = xy + 2; i < num - 1; ++i, cxy += 2) {
-        splitCasteljau(ptmp, 1.0 / (num - i), pleft, pright);
+        if (ts) {
+            t = (ts[i] - ts[i - 1]) / (1.0 - ts[i - 1]);
+        } else
+            t = 1.0 / (num - i);
+        splitCasteljau(ptmp, t, pleft, pright);
         memcpy(cxy, pright, sizeof(qreal) * 2);
         qSwap(pright, ptmp);
     }
@@ -118,10 +124,10 @@ void CurveFitter::curve(const qreal *pxy, int num, qreal *xy)
 
 void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
 {
-    qreal *pxy = (qreal*)data;
-    if (pxy + 2 != p)
-        memcpy(pxy + 2, p, sizeof(qreal) * m);
-    curve(pxy, n / 2, hx);
+    InternalData *iData = (InternalData*)data;
+    if (iData->pxy + 2 != p)
+        memcpy(iData->pxy + 2, p, sizeof(qreal) * m);
+    curve(iData->pxy, n / 2, hx, iData->ts);
 }
 
 qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
@@ -130,32 +136,45 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     int sz = 2 * points.count();
     qreal *x = const_cast<qreal*>(points.data());
 
+    InternalData data(sz / 2);
+    data.ts[0] = 0.0;
+    /* Cumulative distances */
+    for (int i = 1; i < sz / 2; ++i) {
+        qreal dx = x[2 * i] - x[2 * i - 2];
+        qreal dy = x[2 * i + 1] - x[2 * i - 1];
+        data.ts[i] = data.ts[i - 1] + qSqrt(dx * dx + dy * dy);
+    }
+    /* Normalized cumulative distances */
+    for (int i = 1; i < sz / 2; ++i) {
+        data.ts[i] /= data.ts[sz / 2 - 1];
+    }
+
     curve.resize(SPLINE_SIZE);
-    qreal *pxy = curve.data();
+    data.pxy = curve.data();
 
     qreal segmentLen = (sz / (SPLINE_LEN - 1));
     /* Init middle points of Bezier curve */
     for (int i = 2; i < SPLINE_SIZE - 2; i += 2) {
         int idx = (i / 2) * segmentLen;
         idx -= idx % 2;
-        pxy[i] = x[idx];
-        pxy[i + 1] = x[idx + 1];
+        data.pxy[i] = x[idx];
+        data.pxy[i + 1] = x[idx + 1];
     }
 
     /* Init first point of Bezier curve */
-    pxy[0] = x[0];
-    pxy[1] = x[1];
+    data.pxy[0] = x[0];
+    data.pxy[1] = x[1];
 
     int idx = (segmentLen - (int)segmentLen % 2);
-    pxy[2] = (x[idx] - x[0]) * 2 + x[0];
-    pxy[3] = (x[idx + 1] - x[1]) * 2 + x[1];
+    data.pxy[2] = (x[idx] - x[0]) * 2 + x[0];
+    data.pxy[3] = (x[idx + 1] - x[1]) * 2 + x[1];
 
-    pxy[SPLINE_SIZE - 4] = (x[sz - 2 - idx] - x[sz - 2]) * 2 + x[sz - 2];
-    pxy[SPLINE_SIZE - 3] = (x[sz - 1 - idx] - x[sz - 1]) * 2 + x[sz - 1];
+    data.pxy[SPLINE_SIZE - 4] = (x[sz - 2 - idx] - x[sz - 2]) * 2 + x[sz - 2];
+    data.pxy[SPLINE_SIZE - 3] = (x[sz - 1 - idx] - x[sz - 1]) * 2 + x[sz - 1];
 
     /* Init last point of Bezier curve */
-    pxy[SPLINE_SIZE - 2] = x[sz - 2];
-    pxy[SPLINE_SIZE - 1] = x[sz - 1];
+    data.pxy[SPLINE_SIZE - 2] = x[sz - 2];
+    data.pxy[SPLINE_SIZE - 1] = x[sz - 1];
 
     /* info[0]= ||e||_2 at initial p.
      * info[1-4]=[ ||e||_2, ||J^T e||_inf,  ||Dp||_2, \mu/max[J^T J]_ii ], all computed at estimated p.
@@ -172,11 +191,11 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
      * info[9]= # linear systems solved, i.e. # attempts for reducing error
      */
     qreal info[LM_INFO_SZ];
-    qreal *p = pxy + 2;
+    qreal *p = data.pxy + 2;
     int m = SPLINE_SIZE - 2 * 2;
     int n = sz;
     dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
-        NULL, pxy);
+        NULL, &data);
 
     /* Residuals */
     qreal fnorm = info[1] / sz;
