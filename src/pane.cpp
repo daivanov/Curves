@@ -25,6 +25,7 @@
 #include <QDebug>
 
 #include "pane.h"
+#include "curvefitter.h"
 
 Pane::Pane(QWidget *parent)
     : QGraphicsView(parent),
@@ -175,6 +176,36 @@ void Pane::analyse()
 {
     QVarLengthArray<qreal,128> angles = direction(m_points, true);
     QVarLengthArray<int,128> spikes = detectSpikes(angles);
+
+    CurveFitter fitter;
+    PointArray<256> segment;
+    int k = 1;
+    for (int i = 0; i < m_points.count(); ++i) {
+        segment << m_points.at(i);
+
+        /* End of segment reached */
+        if (spikes[k] + 1 == i) {
+            PointArray<256> curve;
+            fitter.fit(segment, curve);
+
+            for (int j = 0; j < curve.count(); j += 2) {
+                addLine(curve.at(j), curve.at(j + 1), Qt::blue);
+            }
+
+            PointArray<256> points = fitter.curve(curve, segment.count());
+            for (int j = 0; j < points.count() - 1; ++j) {
+                addLine(points.at(j), points.at(j + 1), Qt::white);
+            }
+
+            for (int j = 1; j < curve.count() - 1; ++j) {
+                addEllipse(curve.at(j), Qt::red);
+            }
+
+            k++;
+            segment.clear();
+            segment << m_points.at(i);
+        }
+    }
 
     foreach (int spike, spikes) {
         QPointF point = m_points.at(spike + 1);
