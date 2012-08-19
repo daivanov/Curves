@@ -18,7 +18,9 @@
  */
 
 #include <QtTest>
+
 #include "curvetest.h"
+#include "utils.h"
 
 #define CURVE_LENGTH    80
 #define DUMP_FILE       "curves.csv"
@@ -64,8 +66,8 @@ void CurveTest::testCurve()
     }
     stdPoints = qSqrt(stdPoints);
     QVERIFY(stdPoints < 1e-4);
-    saveToFile(points, false);
-    saveToFile(points2, true);
+    Utils::saveToFile(DUMP_FILE, points, false);
+    Utils::saveToFile(DUMP_FILE, points2, true);
 }
 
 void CurveTest::testSplit()
@@ -84,24 +86,6 @@ void CurveTest::testSplit()
     QCOMPARE(left[SPLINE_LEN * 2 - 1], right[1]);
     QCOMPARE(curve[SPLINE_LEN * 2 - 2], right[SPLINE_LEN * 2 - 2]);
     QCOMPARE(curve[SPLINE_LEN * 2 - 1], right[SPLINE_LEN * 2 -1]);
-}
-
-void CurveTest::saveToFile(const PointArray<256> &points, bool append)
-{
-    QFile file(DUMP_FILE);
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text |
-                   (append ? QIODevice::Append : QIODevice::NotOpen)))
-        return;
-    QTextStream in(&file);
-    for (int i = 0; i < points.count(); ++i) {
-        in << points.at(i).x() << ",";
-    }
-    in << points.last().x() << "\n";
-    for (int i = 0; i < points.count(); ++i) {
-        in << points.at(i).y() << ",";
-    }
-    in << points.last().y() << "\n";
-    file.close();
 }
 
 void CurveTest::cleanupTestCase()
