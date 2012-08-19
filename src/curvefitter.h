@@ -55,14 +55,13 @@ private:
     };
 
     static qreal bins[SPLINE_LEN];
-    static int refCount;
 
     void initBins();
     static void point(const qreal *pxy, qreal t, qreal *xy);
     static void curve(const qreal *pxy, int num, qreal *xy, const qreal *ts = 0);
     static void func(double *p, double *hx, int m, int n, void *data);
     static void func2(double *t, double *hx, int m, int n, void *data);
-    
+
     static void splitCasteljau(const qreal *pxy,  qreal t,
         qreal *pxy1, qreal *pxy2);
 

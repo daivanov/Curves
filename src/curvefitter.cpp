@@ -22,24 +22,22 @@
 #include <QDebug>
 
 #include "curvefitter.h"
+#include "utils.h"
 
 #define SPLINE_SIZE (2 * SPLINE_LEN)
 #define MAX_ITER 500
 
-qreal CurveFitter::bins[SPLINE_LEN];
-int CurveFitter::refCount = 0;
+qreal CurveFitter::bins[SPLINE_LEN] = { 0 };
 
 CurveFitter::CurveFitter()
 {
-    Q_ASSERT(sizeof(qreal) == sizeof(qreal));
-    if(!refCount)
+    Q_ASSERT(sizeof(qreal) == sizeof(double));
+    if(!bins[0])
         initBins();
-    refCount++;
 }
 
 CurveFitter::~CurveFitter()
 {
-    refCount--;
 }
 
 void CurveFitter::initBins()
