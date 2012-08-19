@@ -130,6 +130,14 @@ void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
     curve(iData->pxy, n / 2, hx, iData->ts);
 }
 
+void CurveFitter::func2(qreal *t, qreal *hx, int m, int n, void *data)
+{
+    Q_UNUSED(m);
+    Q_UNUSED(n);
+    InternalData *iData = (InternalData*)data;
+    point(iData->pxy, *t, hx);
+}
+
 void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts)
 {
     Q_ASSERT(x);
@@ -201,39 +209,30 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     qreal *p = data.pxy + 2;
     int m = SPLINE_SIZE - 2 * 2;
     int n = sz;
-    qreal fnorm;
+    qreal fnorm = INT_MAX, fnormPrev;
 
-    qreal *hx = 0;
-    qreal *ts = 0;
-
-    for (int i = 0; i < 2; ++i) {
+    do {
+        /* Optimize spline shape */
         dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
             NULL, &data);
 
         /* Residuals */
+        fnormPrev = fnorm;
         fnorm = info[1] / sz;
         qDebug() << "Termination reason" << info[6]
                  << "after" << info[5] << "iterations"
                  << "error" << fnorm;
 
-        if (fnorm > 1.0) {
-            if (!hx)
-                hx = new qreal[sz];
-            CurveFitter::curve(data.pxy, sz / 2, hx, data.ts);
-            if (!ts)
-                ts = new qreal[sz / 2];
-            chordLengthParam(sz / 2, hx, ts);
-            /* Update spline points */
-            for (int i = 1; i < sz / 2 - 1; ++i) {
-                data.ts[i] *= (data.ts[i] / ts[i]);
-            }
-        }
-    }
+        /* Quit, when improvement is less than 1% */
+        if ((fnormPrev - fnorm) / fnormPrev < 0.01)
+            break;
 
-    if (hx)
-        delete [] hx;
-    if (ts)
-        delete [] ts;
+        /* Optimize point parameters */
+        for (int j = 1; j < sz / 2 - 1; ++j) {
+            dlevmar_dif(CurveFitter::func2, data.ts + j, x + 2 * j, 1, 2, MAX_ITER,
+                NULL, info, NULL, NULL, &data);
+        }
+    } while (true);
 
     return fnorm;
 }
