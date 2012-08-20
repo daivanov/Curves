@@ -28,6 +28,7 @@
 #define MAX_ITER 500
 
 qreal CurveFitter::bins[SPLINE_LEN] = { 0 };
+qreal CurveFitter::resPhi = 0;
 
 CurveFitter::CurveFitter()
 {
@@ -48,6 +49,7 @@ void CurveFitter::initBins()
         for (int j = a + 1; j <= SPLINE_LEN - 1; ++j)
             bins[i] *= (qreal) j / (j - a);
     }
+    resPhi = 2 - (1 + qSqrt(5)) / 2;
 }
 
 void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
@@ -155,6 +157,46 @@ void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts,
         ts[i] /= ts[len - 1];
 }
 
+qreal CurveFitter::func3(qreal t, void *data)
+{
+    SectionData *sData = (SectionData*)data;
+    qreal hx[2];
+
+    point(sData->pxy, t, hx);
+    qreal dx = hx[0] - sData->x[0];
+    qreal dy = hx[1] - sData->x[1];
+
+    /* Compute squared error */
+    return dx * dx + dy * dy;
+}
+
+qreal CurveFitter::goldenSectionSearch(qreal (*func)(qreal x, void *data),
+    qreal a, qreal b, qreal epsilon, void *data)
+{
+    qreal x1 = a + resPhi * (b - a);
+    qreal x2 = b - resPhi * (b - a);
+    qreal f1 = func(x1, data);
+    qreal f2 = func(x2, data);
+
+    do {
+        if (f1 < f2) {
+            b = x2;
+            x2 = x1;
+            f2 = f1;
+            x1 = a + resPhi * (b - a);
+            f1 = func(x1, data);
+        } else {
+            a = x1;
+            x1 = x2;
+            f1 = f2;
+            x2 = b - resPhi * (b - a);
+            f2 = func(x2, data);
+        }
+    } while (qAbs(b - a) > epsilon);
+
+    return (a + b) / 2;
+}
+
 qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
 {
     /* Init input data */
@@ -228,11 +270,17 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
 
         /* Optimize point parameters */
         qreal diff = 0;
+        SectionData sData;
+        sData.pxy = data.pxy;
         for (int j = 1; j < sz / 2 - 1; ++j) {
             data.ts[j] += diff;
             diff = data.ts[j]; /* Saving old value */
-            dlevmar_dif(CurveFitter::func2, data.ts + j, x + 2 * j, 1, 2, MAX_ITER,
-                NULL, info, NULL, NULL, &data);
+            qreal a = (j < 1) ? 0.0 : data.ts[j - 1];
+            qreal b = (j > sz / 2 - 2) ? 1.0 : data.ts[j + 1] + diff;
+            qreal epsilon = (b - a) * 0.01; /* 1% of interval */
+            sData.x = x + 2 * j;
+            data.ts[j] = goldenSectionSearch(CurveFitter::func3, a, b,
+                epsilon, &sData);
             diff = data.ts[j] - diff; /* Change between new and old */
         }
     } while (true);

@@ -54,7 +54,19 @@ private:
         qreal *ts;  /* Sample points of size n */
     };
 
+    class SectionData
+    {
+    public:
+        qreal *pxy; /* Bezier spline of size SPLINE_SIZE */
+        qreal *x;  /* Sample point of size 2 */
+    };
+
     static qreal bins[SPLINE_LEN];
+    static qreal resPhi;
+
+    static qreal func3(double t, void *data);
+    qreal goldenSectionSearch(qreal (*func)(qreal x, void *data),
+        qreal a, qreal b, qreal epsilon, void *data);
 
     void initBins();
     static void point(const qreal *pxy, qreal t, qreal *xy);
