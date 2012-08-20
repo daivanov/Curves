@@ -48,9 +48,6 @@ Pane::~Pane()
 
 bool Pane::eventFilter(QObject *obj, QEvent *event)
 {
-    if (!m_active)
-        return QObject::eventFilter(obj, event);
-
     switch (event->type()) {
     case QEvent::WindowActivate: {
         QRectF newSceneRect(QPointF(0.0, 0.0), maximumViewportSize());
@@ -58,6 +55,17 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
     }
         break;
     case QEvent::GraphicsSceneMousePress: {
+        if (!m_active) {
+            /* Clear everything */
+            m_points.clear();
+            m_angles.clear();
+            QList<QGraphicsItem*> items = m_scene->items();
+            foreach (QGraphicsItem *item, items) {
+                m_scene->removeItem(item);
+                delete item;
+            }
+            m_active = true;
+        }
         QGraphicsSceneMouseEvent *mouseEvent =
             static_cast<QGraphicsSceneMouseEvent*>(event);
 
