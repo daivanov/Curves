@@ -136,7 +136,8 @@ void CurveFitter::func2(qreal *t, qreal *hx, int m, int n, void *data)
     point(iData->pxy, *t, hx);
 }
 
-void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts)
+void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts,
+    bool centripetal)
 {
     Q_ASSERT(x);
     Q_ASSERT(ts);
@@ -146,7 +147,7 @@ void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts)
     for (int i = 1; i < len; ++i) {
         qreal dx = x[2 * i] - x[2 * i - 2];
         qreal dy = x[2 * i + 1] - x[2 * i - 1];
-        ts[i] = ts[i - 1] + qSqrt(dx * dx + dy * dy);
+        ts[i] = ts[i - 1] + qPow((dx * dx + dy * dy), (centripetal ? .25 : .5));
     }
 
     /* Normalized cumulative chord distances */
@@ -163,7 +164,7 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     InternalData data(sz / 2);
     curve.resize(SPLINE_SIZE);
     data.pxy = curve.data();
-    chordLengthParam(sz / 2, x, data.ts);
+    chordLengthParam(sz / 2, x, data.ts, false);
 
     qreal segmentLen = (sz / (SPLINE_LEN - 1));
     /* Init middle points of Bezier curve */
@@ -226,9 +227,13 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
             break;
 
         /* Optimize point parameters */
+        qreal diff = 0;
         for (int j = 1; j < sz / 2 - 1; ++j) {
+            data.ts[j] += diff;
+            diff = data.ts[j]; /* Saving old value */
             dlevmar_dif(CurveFitter::func2, data.ts + j, x + 2 * j, 1, 2, MAX_ITER,
                 NULL, info, NULL, NULL, &data);
+            diff = data.ts[j] - diff; /* Change between new and old */
         }
     } while (true);
 
