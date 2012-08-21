@@ -37,6 +37,9 @@ public:
     void splitCasteljau(const PointArray<256> &curve, qreal t,
         PointArray<256> &left, PointArray<256> &right);
 
+    qreal goldenSectionSearch(qreal (*func)(qreal x, void *data),
+        qreal a, qreal b, qreal epsilon, void *data);
+
 private:
     class InternalData
     {
@@ -65,8 +68,6 @@ private:
     static qreal resPhi;
 
     static qreal func3(double t, void *data);
-    qreal goldenSectionSearch(qreal (*func)(qreal x, void *data),
-        qreal a, qreal b, qreal epsilon, void *data);
 
     void initBins();
     static void point(const qreal *pxy, qreal t, qreal *xy);

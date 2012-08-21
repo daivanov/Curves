@@ -55,7 +55,7 @@ void CurveTest::testCurve()
         stdCurve += (diff.x() * diff.x() + diff.y() * diff.y()) / CURVE_LENGTH;
     }
     stdCurve = qSqrt(stdCurve);
-    QVERIFY(stdCurve < 1e-4);
+    QVERIFY(stdCurve < 1e-3);
 
     /* Computed Bezier curve points */
     PointArray<256> points2 = m_fitter->curve(curve2, CURVE_LENGTH);
@@ -65,7 +65,7 @@ void CurveTest::testCurve()
         stdPoints += (diff.x() * diff.x() + diff.y() * diff.y()) / CURVE_LENGTH;
     }
     stdPoints = qSqrt(stdPoints);
-    QVERIFY(stdPoints < 1e-4);
+    QVERIFY(stdPoints < 1e-3);
     Utils::saveToFile(DUMP_FILE, points, false);
     Utils::saveToFile(DUMP_FILE, points2, true);
 }
@@ -86,6 +86,23 @@ void CurveTest::testSplit()
     QCOMPARE(left[SPLINE_LEN * 2 - 1], right[1]);
     QCOMPARE(curve[SPLINE_LEN * 2 - 2], right[SPLINE_LEN * 2 - 2]);
     QCOMPARE(curve[SPLINE_LEN * 2 - 1], right[SPLINE_LEN * 2 -1]);
+}
+
+qreal CurveTest::func(qreal x, void *data)
+{
+    CurveTest *ct = static_cast<CurveTest*>(data);
+    return ct->m_a * x * x +  ct->m_b *x + ct->m_c;
+}
+
+void CurveTest::testGoldenSectionSearch()
+{
+    m_a = 1.0;
+    m_b = 2.0;
+    m_c = 3.0;
+    qreal epsilon = 0.01;
+    qreal result = m_fitter->goldenSectionSearch(func, -5.0, 5.0, epsilon, this);
+
+    QVERIFY((result - (-m_b / 2 * m_a)) < epsilon);
 }
 
 void CurveTest::cleanupTestCase()

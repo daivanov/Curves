@@ -32,12 +32,17 @@ public:
 
 protected:
     void saveToFile(const PointArray<256> &points, bool append);
+    static qreal func(qreal x, void *data);
 
 private slots:
     void initTestCase();
     void testCurve();
     void testSplit();
+    void testGoldenSectionSearch();
     void cleanupTestCase();
+
+public:
+    qreal m_a, m_b, m_c;
 
 private:
     CurveFitter *m_fitter;
