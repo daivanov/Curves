@@ -80,6 +80,11 @@ private:
 
     void chordLengthParam(int len, const qreal *x, qreal *ts, bool centripetal);
 
+    qreal reparametrize(const qreal *pxy, const qreal *pxy1, const qreal *pxy2,
+        const qreal *x, qreal t);
+    void reparametrizePoints(const qreal *pxy, int num, const qreal *x,
+        qreal *ts);
+
     friend class CurveTest;
 };
 

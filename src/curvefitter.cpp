@@ -205,6 +205,58 @@ qreal CurveFitter::goldenSectionSearch(qreal (*func)(qreal x, void *data),
     return (a + b) / 2;
 }
 
+qreal CurveFitter::reparametrize(const qreal *pxy, const qreal *pxy1,
+    const qreal *pxy2, const qreal *x, qreal t)
+{
+    /* Compute curve, curve' and curve'' points */
+    qreal hx[2], hx1[2], hx2[2];
+    point(SPLINE_ORDER, pxy, t, hx);
+    point(SPLINE_ORDER - 1, pxy1, t, hx1);
+    point(SPLINE_ORDER - 2, pxy2, t, hx2);
+
+    /* Compute f'(t) and f"(t) */
+    qreal f1 = (hx[0] - x[0]) * hx1[0] + (hx[1] - x[1]) * hx1[1];
+    qreal f2 = hx1[0] * hx1[0] + hx1[1] * hx1[1] +
+        (hx[0] - x[0]) * hx2[0] + (hx[1] - x[1]) * hx2[1];
+
+    /* Newton method for optimization: t = t - f'(t)/f"(t) */
+    qreal newT = t - f1 / f2;
+    return newT;
+}
+
+void CurveFitter::reparametrizePoints(const qreal *pxy, int num, const qreal *x,
+    qreal *ts)
+{
+    qreal pxy1[2 * (SPLINE_ORDER - 1)], pxy2[2 * (SPLINE_ORDER - 2)];
+
+    /* Generate first derivative of Bezier curve */
+    for (int i = 0; i < SPLINE_ORDER - 1; ++i) {
+        pxy1[2 * i] = (pxy[2 * (i + 1)] - pxy[2 * i]) * (SPLINE_ORDER - 1);
+        pxy1[2 * i + 1] = (pxy[2 * (i + 1) + 1] - pxy[2 * i + 1]) * (SPLINE_ORDER - 1);
+    }
+
+    /* Generate second derivative of Bezier curve */
+    for (int i = 0; i < SPLINE_ORDER - 2; ++i) {
+        pxy2[2 * i] = (pxy1[2 * (i + 1)] - pxy1[2 * i]) * (SPLINE_ORDER - 2);
+        pxy2[2 * i + 1] = (pxy1[2 * (i + 1) + 1] - pxy1[2 * i + 1]) * (SPLINE_ORDER - 2);
+    }
+
+    qreal diff = 0;
+    for (int j = 1; j < num - 1; ++j) {
+        ts[j] += diff;
+        /* Saving old value */
+        diff = ts[j];
+        qreal backupT;
+        do {
+            backupT = ts[j];
+            ts[j] = reparametrize(pxy, pxy1, pxy2, x + 2 * j, ts[j]);
+            /* Quit, when improvement is less than 1% */
+        } while (qAbs(ts[j] - backupT) / backupT > 0.01);
+        /* Change between new and old */
+        diff = ts[j] - diff;
+    }
+}
+
 qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
 {
     /* Init input data */
@@ -277,20 +329,7 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
             break;
 
         /* Optimize point parameters */
-        qreal diff = 0;
-        SectionData sData;
-        sData.pxy = data.pxy;
-        for (int j = 1; j < sz / 2 - 1; ++j) {
-            data.ts[j] += diff;
-            diff = data.ts[j]; /* Saving old value */
-            qreal a = (j < 1) ? 0.0 : data.ts[j - 1];
-            qreal b = (j > sz / 2 - 2) ? 1.0 : data.ts[j + 1] + diff;
-            qreal epsilon = (b - a) * 0.01; /* 1% of interval */
-            sData.x = x + 2 * j;
-            data.ts[j] = goldenSectionSearch(CurveFitter::func3, a, b,
-                epsilon, &sData);
-            diff = data.ts[j] - diff; /* Change between new and old */
-        }
+        reparametrizePoints(data.pxy, sz / 2, x, data.ts);
     } while (true);
 
     return fnorm;

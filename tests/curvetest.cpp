@@ -24,6 +24,7 @@
 
 #define CURVE_LENGTH    80
 #define DUMP_FILE       "curves.csv"
+#define EPSILON         1e-4
 
 CurveTest::CurveTest(QObject *parent) : QObject(parent), m_fitter(0)
 {
@@ -49,14 +50,14 @@ void CurveTest::testCurve()
     /* Computed Bezier curve */
     PointArray<256> curve2;
     qreal err = m_fitter->fit(points, curve2);
-    QVERIFY(err < 1e-4);
+    QVERIFY(err < EPSILON);
     qreal stdCurve = 0;
     for (int i = 0; i < curve.count() && i < curve2.count(); ++i) {
         QPointF diff = curve.at(i) - curve2.at(i);
         stdCurve += (diff.x() * diff.x() + diff.y() * diff.y()) / CURVE_LENGTH;
     }
     stdCurve = qSqrt(stdCurve);
-    QVERIFY(stdCurve < 1e-3);
+    QVERIFY(stdCurve < EPSILON);
 
     /* Computed Bezier curve points */
     PointArray<256> points2 = m_fitter->curve(curve2, CURVE_LENGTH);
@@ -66,7 +67,7 @@ void CurveTest::testCurve()
         stdPoints += (diff.x() * diff.x() + diff.y() * diff.y()) / CURVE_LENGTH;
     }
     stdPoints = qSqrt(stdPoints);
-    QVERIFY(stdPoints < 1e-3);
+    QVERIFY(stdPoints < EPSILON);
     Utils::saveToFile(DUMP_FILE, points, false);
     Utils::saveToFile(DUMP_FILE, points2, true);
 }
@@ -110,6 +111,21 @@ void CurveTest::testGoldenSectionSearch()
     qreal result = m_fitter->goldenSectionSearch(func, -5.0, 5.0, epsilon, this);
 
     QVERIFY((result - (-m_b / 2 * m_a)) < epsilon);
+}
+
+void CurveTest::testReparametrization()
+{
+    /* Original Bezier curve */
+    PointArray<256> curve;
+    curve << QPointF(0.0, 0.0) << QPointF(-0.25, 1.0)
+          << QPointF(1.25, -1.0) << QPointF(1.0, 0.0);
+    qreal *curveData = curve.data();
+    qreal xy[2];
+    qreal t = 0.5, newT = 0.6;
+    m_fitter->point(curveData, t, xy);
+
+    m_fitter->reparametrizePoints(curveData, 1, xy, &newT);
+    QVERIFY(t - newT < EPSILON);
 }
 
 void CurveTest::cleanupTestCase()

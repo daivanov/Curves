@@ -39,6 +39,7 @@ private slots:
     void testCurve();
     void testSplit();
     void testGoldenSectionSearch();
+    void testReparametrization();
     void cleanupTestCase();
 
 public:
