@@ -24,7 +24,7 @@
 
 #include "pointarray.h"
 
-#define SPLINE_LEN 4
+#define SPLINE_ORDER 4
 
 class CurveFitter
 {
@@ -64,21 +64,23 @@ private:
         qreal *x;  /* Sample point of size 2 */
     };
 
-    static qreal bins[SPLINE_LEN];
+    static qreal bins[SPLINE_ORDER];
     static qreal resPhi;
 
     static qreal func3(double t, void *data);
 
     void initBins();
     static void point(const qreal *pxy, qreal t, qreal *xy);
-    static void curve(const qreal *pxy, int num, qreal *xy, const qreal *ts = 0);
+    static void point(int splineOrder, const qreal *pxy, qreal t, qreal *xy);
+    static void curve(int splineOrder, const qreal *pxy, int num, qreal *xy, const qreal *ts = 0);
     static void func(double *p, double *hx, int m, int n, void *data);
-    static void func2(double *t, double *hx, int m, int n, void *data);
 
-    static void splitCasteljau(const qreal *pxy,  qreal t,
-        qreal *pxy1, qreal *pxy2);
+    static void splitCasteljau(int splineOrder, const qreal *pxy,
+        qreal t, qreal *pxy1, qreal *pxy2);
 
     void chordLengthParam(int len, const qreal *x, qreal *ts, bool centripetal);
+
+    friend class CurveTest;
 };
 
 #endif

@@ -24,10 +24,10 @@
 #include "curvefitter.h"
 #include "utils.h"
 
-#define SPLINE_SIZE (2 * SPLINE_LEN)
+#define SPLINE_SIZE (2 * SPLINE_ORDER)
 #define MAX_ITER 500
 
-qreal CurveFitter::bins[SPLINE_LEN] = { 0 };
+qreal CurveFitter::bins[SPLINE_ORDER] = { 0 };
 qreal CurveFitter::resPhi = 0;
 
 CurveFitter::CurveFitter()
@@ -43,13 +43,23 @@ CurveFitter::~CurveFitter()
 
 void CurveFitter::initBins()
 {
-    for (int i = 0; i < SPLINE_LEN; ++i) {
-        int a = qMax(i, SPLINE_LEN - 1 - i);
+    for (int i = 0; i < SPLINE_ORDER; ++i) {
+        int a = qMax(i, SPLINE_ORDER - 1 - i);
         bins[i] = 1.0;
-        for (int j = a + 1; j <= SPLINE_LEN - 1; ++j)
+        for (int j = a + 1; j <= SPLINE_ORDER - 1; ++j)
             bins[i] *= (qreal) j / (j - a);
     }
     resPhi = 2 - (1 + qSqrt(5)) / 2;
+}
+
+void CurveFitter::point(int splineOrder, const qreal *pxy, qreal t, qreal *xy)
+{
+    qreal *pxy1 = new qreal[2 * splineOrder];
+    qreal *pxy2 = new qreal[2 * splineOrder];
+    splitCasteljau(splineOrder, pxy, t, pxy1, pxy2);
+    memcpy(xy, pxy2, sizeof(qreal) * 2);
+    delete [] pxy1;
+    delete [] pxy2;
 }
 
 void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
@@ -57,9 +67,9 @@ void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
     xy[0] = xy[1] = 0.0;
     int i;
     const qreal *pxyi;
-    for (i = 0, pxyi = pxy; i < SPLINE_LEN; ++i, pxyi += 2) {
+    for (i = 0, pxyi = pxy; i < SPLINE_ORDER; ++i, pxyi += 2) {
         qreal multiplier = bins[i] * qPow(t, i) *
-            qPow(1 - t, SPLINE_LEN - 1 - i);
+            qPow(1 - t, SPLINE_ORDER - 1 - i);
         xy[0] += multiplier * pxyi[0];
         xy[1] += multiplier * pxyi[1];
     }
@@ -68,47 +78,50 @@ void CurveFitter::point(const qreal *pxy, qreal t, qreal *xy)
 void CurveFitter::splitCasteljau(const PointArray<256> &curve, qreal t,
     PointArray<256> &left, PointArray<256> &right)
 {
-    left.resize(SPLINE_SIZE);
-    right.resize(SPLINE_SIZE);
-    splitCasteljau(curve.data(), t, left.data(), right.data());
+    left.resize(curve.count());
+    right.resize(curve.count());
+    splitCasteljau(curve.count(), curve.data(), t, left.data(), right.data());
 }
 
-void CurveFitter::splitCasteljau(const qreal *pxy,  qreal t,
+void CurveFitter::splitCasteljau(int splineOrder, const qreal *pxy,  qreal t,
     qreal *pxy1, qreal *pxy2)
 {
-    qreal tmp[SPLINE_SIZE];
-    memcpy(tmp, pxy, sizeof(qreal) * SPLINE_SIZE);
-    for (int k = 0; k < SPLINE_LEN; ++k) {
+    qreal *tmp = new qreal[2 * splineOrder];
+    memcpy(tmp, pxy, sizeof(qreal) * 2 * splineOrder);
+    for (int k = 0; k < splineOrder; ++k) {
         pxy1[0 + 2 * k] = tmp[0];
         pxy1[1 + 2 * k] = tmp[1];
-        pxy2[SPLINE_SIZE - 2 - 2 * k] = tmp[SPLINE_SIZE - 2 - 2 * k];
-        pxy2[SPLINE_SIZE - 1 - 2 * k] = tmp[SPLINE_SIZE - 1 - 2 * k];
-        for (int i = 0; i < SPLINE_SIZE - 2 - 2 * k; ++i) {
+        pxy2[2 * (splineOrder - k) - 2] = tmp[2 * (splineOrder - k) - 2];
+        pxy2[2 * (splineOrder - k) - 1] = tmp[2 * (splineOrder - k) - 1];
+        for (int i = 0; i < 2 * (splineOrder - k) - 2; ++i) {
             tmp[i] = (1 - t) * tmp[i] + t * tmp[i + 2];
         }
     }
+    delete [] tmp;
 }
 
 PointArray<256> CurveFitter::curve(const PointArray<256> &curvePoints, int count)
 {
     PointArray<256> points;
-    points.resize(2 * count);
+    points.resize(count);
 
-    curve(curvePoints.data(), count, points.data());
+    curve(curvePoints.count(), curvePoints.data(), count, points.data());
 
     return points;
 }
 
-void CurveFitter::curve(const qreal *pxy, int num, qreal *xy, const qreal *ts)
+void CurveFitter::curve(int splineOrder, const qreal *pxy, int num, qreal *xy,
+    const qreal *ts)
 {
-    qreal spline1[SPLINE_SIZE], spline2[SPLINE_SIZE], spline3[SPLINE_SIZE];
-    qreal *pleft = spline1, *ptmp = spline2, *pright = spline3;
-    memcpy(ptmp, pxy, sizeof(qreal) * SPLINE_SIZE);
+    qreal *pleft = new qreal[2 * splineOrder];
+    qreal *ptmp = new qreal[2 * splineOrder];
+    qreal *pright = new qreal[2 * splineOrder];
+    memcpy(ptmp, pxy, sizeof(qreal) * 2 * splineOrder);
     int i; qreal *cxy;
     /* Initial point */
     memcpy(xy, pxy, sizeof(qreal) * 2);
     /* Last point */
-    memcpy(xy + 2 * (num - 1), pxy + 2 * (SPLINE_LEN - 1), sizeof(qreal) * 2);
+    memcpy(xy + 2 * (num - 1), pxy + 2 * (splineOrder - 1), sizeof(qreal) * 2);
     /* Other points */
     qreal t;
     for (i = 1, cxy = xy + 2; i < num - 1; ++i, cxy += 2) {
@@ -116,10 +129,13 @@ void CurveFitter::curve(const qreal *pxy, int num, qreal *xy, const qreal *ts)
             t = (ts[i] - ts[i - 1]) / (1.0 - ts[i - 1]);
         } else
             t = 1.0 / (num - i);
-        splitCasteljau(ptmp, t, pleft, pright);
+        splitCasteljau(splineOrder, ptmp, t, pleft, pright);
         memcpy(cxy, pright, sizeof(qreal) * 2);
         qSwap(pright, ptmp);
     }
+    delete [] pleft;
+    delete [] ptmp;
+    delete [] pright;
 }
 
 void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
@@ -127,15 +143,7 @@ void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
     InternalData *iData = (InternalData*)data;
     if (iData->pxy + 2 != p)
         memcpy(iData->pxy + 2, p, sizeof(qreal) * m);
-    curve(iData->pxy, n / 2, hx, iData->ts);
-}
-
-void CurveFitter::func2(qreal *t, qreal *hx, int m, int n, void *data)
-{
-    Q_UNUSED(m);
-    Q_UNUSED(n);
-    InternalData *iData = (InternalData*)data;
-    point(iData->pxy, *t, hx);
+    curve(SPLINE_ORDER, iData->pxy, n / 2, hx, iData->ts);
 }
 
 void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts,
@@ -204,11 +212,11 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     qreal *x = const_cast<qreal*>(points.data());
 
     InternalData data(sz / 2);
-    curve.resize(SPLINE_SIZE);
+    curve.resize(SPLINE_ORDER);
     data.pxy = curve.data();
     chordLengthParam(sz / 2, x, data.ts, false);
 
-    qreal segmentLen = (sz / (SPLINE_LEN - 1));
+    qreal segmentLen = (sz / (SPLINE_ORDER - 1));
     /* Init middle points of Bezier curve */
     for (int i = 2; i < SPLINE_SIZE - 2; i += 2) {
         int idx = (i / 2) * segmentLen;

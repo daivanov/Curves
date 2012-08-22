@@ -39,6 +39,13 @@ public:
     inline QPointF last(void) const  { return at(count() - 1);
     };
 
+    inline void removeLast(void) {
+        QVarLengthArray<qreal, Prealloc>::removeLast();
+        QVarLengthArray<qreal, Prealloc>::removeLast();
+    };
+    inline void resize(int size) {
+        QVarLengthArray<qreal, Prealloc>::resize(2 * size);
+    };
     inline int count(void) const {
         return QVarLengthArray<qreal,Prealloc>::count() / 2;
     };
