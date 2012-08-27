@@ -147,7 +147,7 @@ void CurveFitter::func(qreal *p, qreal *hx, int m, int n, void *data)
 }
 
 void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts,
-    bool centripetal)
+    Parametrization parametrization)
 {
     Q_ASSERT(x);
     Q_ASSERT(ts);
@@ -157,7 +157,8 @@ void CurveFitter::chordLengthParam(int len, const qreal *x, qreal *ts,
     for (int i = 1; i < len; ++i) {
         qreal dx = x[2 * i] - x[2 * i - 2];
         qreal dy = x[2 * i + 1] - x[2 * i - 1];
-        ts[i] = ts[i - 1] + qPow((dx * dx + dy * dy), (centripetal ? .25 : .5));
+        ts[i] = ts[i - 1] + qPow((dx * dx + dy * dy),
+                                 (parametrization == CENTRIPETAL ? .25 : .5));
     }
 
     /* Normalized cumulative chord distances */
@@ -257,16 +258,48 @@ void CurveFitter::reparametrizePoints(const qreal *pxy, int num, const qreal *x,
     }
 }
 
-qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
+qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve,
+    Transformation transformation)
 {
     /* Init input data */
     int sz = 2 * points.count();
-    qreal *x = const_cast<qreal*>(points.data());
+    qreal *pdata = const_cast<qreal*>(points.data());
+
+    qreal *x;
+    qreal mean[2] = {.0, .0};
+    qreal std[2] = {.0, .0};
+    if (transformation == AFFINE) {
+        x = new qreal[sz];
+        for (int i = 0; i < sz; i += 2) {
+            mean[0] += pdata[i];
+            mean[1] += pdata[i + 1];
+        }
+        mean[0] /= (sz / 2);
+        mean[1] /= (sz / 2);
+
+        for (int i = 0; i < sz; i += 2) {
+            std[0] += (pdata[i] - mean[0]) * (pdata[i] - mean[0]);
+            std[1] += (pdata[i + 1] - mean[1]) * (pdata[i + 1] - mean[1]);
+        }
+        std[0] = qSqrt(std[0] / (sz / 2));
+        std[1] = qSqrt(std[1] / (sz / 2));
+
+        qreal minStd = qMin(std[0], std[1]);
+        std[0] /= minStd;
+        std[1] /= minStd;
+
+        for (int i = 0; i < sz; i += 2) {
+            x[i] = (pdata[i] - mean[0]) / std[0];
+            x[i + 1] = (pdata[i + 1] - mean[1]) / std[1];
+        }
+    } else {
+        x = pdata;
+    }
 
     InternalData data(sz / 2);
     curve.resize(SPLINE_ORDER);
     data.pxy = curve.data();
-    chordLengthParam(sz / 2, x, data.ts, false);
+    chordLengthParam(sz / 2, x, data.ts, CHORD_LENGTH);
 
     qreal segmentLen = (sz / (SPLINE_ORDER - 1));
     /* Init middle points of Bezier curve */
@@ -312,6 +345,7 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
     int n = sz;
     qreal fnorm = INT_MAX, fnormPrev;
 
+    int totalIters = 0;
     do {
         /* Optimize spline shape */
         dlevmar_dif(CurveFitter::func, p, x, m, n, MAX_ITER, NULL, info, NULL,
@@ -324,6 +358,7 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
                  << "after" << info[5] << "iterations"
                  << "error" << fnorm;
 
+        totalIters += info[5];
         /* Quit, when improvement is less than 1% */
         if ((fnormPrev - fnorm) / fnormPrev < 0.01)
             break;
@@ -331,6 +366,16 @@ qreal CurveFitter::fit(const PointArray<256> &points, PointArray<256> &curve)
         /* Optimize point parameters */
         reparametrizePoints(data.pxy, sz / 2, x, data.ts);
     } while (true);
+    qDebug() << "Total iterations" << totalIters;
+
+    if (transformation == AFFINE) {
+        delete [] x;
+
+        for (int i = 0; i < SPLINE_SIZE; i += 2) {
+            data.pxy[i] = data.pxy[i] * std[0] + mean[0];
+            data.pxy[i + 1] = data.pxy[i + 1] * std[1] + mean[1];
+        }
+    }
 
     return fnorm;
 }

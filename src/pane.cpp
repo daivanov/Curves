@@ -194,7 +194,7 @@ void Pane::analyse()
         /* End of segment reached */
         if (spikes[k] + 1 == i) {
             PointArray<256> curve;
-            fitter.fit(segment, curve);
+            fitter.fit(segment, curve, CurveFitter::AFFINE);
 
             for (int j = 0; j < curve.count(); j += 2) {
                 addLine(curve.at(j), curve.at(j + 1), Qt::blue);

@@ -36,6 +36,7 @@ protected:
 
 private slots:
     void initTestCase();
+    void testCurve_data();
     void testCurve();
     void testSplit();
     void testGoldenSectionSearch();

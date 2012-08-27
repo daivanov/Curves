@@ -32,7 +32,9 @@ public:
     CurveFitter();
     ~CurveFitter();
 
-    qreal fit(const PointArray<256> &points, PointArray<256> &curve);
+    enum Transformation { EUCLIDEAN, AFFINE };
+    qreal fit(const PointArray<256> &points, PointArray<256> &curve,
+        Transformation transformation);
     PointArray<256> curve(const PointArray<256> &curve, int count);
     void splitCasteljau(const PointArray<256> &curve, qreal t,
         PointArray<256> &left, PointArray<256> &right);
@@ -78,7 +80,9 @@ private:
     static void splitCasteljau(int splineOrder, const qreal *pxy,
         qreal t, qreal *pxy1, qreal *pxy2);
 
-    void chordLengthParam(int len, const qreal *x, qreal *ts, bool centripetal);
+    enum Parametrization { CHORD_LENGTH, CENTRIPETAL };
+    void chordLengthParam(int len, const qreal *x, qreal *ts,
+        Parametrization parametrization);
 
     qreal reparametrize(const qreal *pxy, const qreal *pxy1, const qreal *pxy2,
         const qreal *x, qreal t);

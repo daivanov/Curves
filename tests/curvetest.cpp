@@ -26,6 +26,8 @@
 #define DUMP_FILE       "curves.csv"
 #define EPSILON         1e-4
 
+Q_DECLARE_METATYPE(CurveFitter::Transformation);
+
 CurveTest::CurveTest(QObject *parent) : QObject(parent), m_fitter(0)
 {
 }
@@ -36,8 +38,18 @@ void CurveTest::initTestCase()
     m_fitter = new CurveFitter();
 }
 
+void CurveTest::testCurve_data()
+{
+    QTest::addColumn<CurveFitter::Transformation>("transformation");
+
+    QTest::newRow("Euclidean") << CurveFitter::EUCLIDEAN;
+    QTest::newRow("Affine")     << CurveFitter::AFFINE;
+}
+
 void CurveTest::testCurve()
 {
+    QFETCH(CurveFitter::Transformation, transformation);
+
     /* Original Bezier curve */
     PointArray<256> curve;
     curve << QPointF(0.0, 0.0) << QPointF(-0.25, 1.0)
@@ -49,7 +61,7 @@ void CurveTest::testCurve()
 
     /* Computed Bezier curve */
     PointArray<256> curve2;
-    qreal err = m_fitter->fit(points, curve2);
+    qreal err = m_fitter->fit(points, curve2, transformation);
     QVERIFY(err < EPSILON);
     qreal stdCurve = 0;
     for (int i = 0; i < curve.count() && i < curve2.count(); ++i) {
