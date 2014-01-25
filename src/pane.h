@@ -20,7 +20,9 @@
 #ifndef PANE_H
 #define PANE_H
 
+#include <QFile>
 #include <QGraphicsView>
+#include <QTextStream>
 #include <QVarLengthArray>
 
 #include "pointarray.h"
@@ -47,6 +49,8 @@ private:
     QVarLengthArray<int,128> detectSpikes(const QVarLengthArray<qreal,128> &directions, int tinySegment = 4);
     void analyse();
 
+    QFile *m_file;
+    QTextStream m_out;
     QGraphicsScene *m_scene;
     PointArray<256> m_points;
     QVarLengthArray<qreal,128> m_angles;

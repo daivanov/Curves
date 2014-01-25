@@ -17,6 +17,8 @@
  * License along with Curves. If not, see http://www.gnu.org/licenses/.
  */
 
+#include <QFile>
+#include <QDateTime>
 #include <QtCore/qmath.h>
 #include <QPointF>
 #include <QGraphicsScene>
@@ -40,10 +42,18 @@ Pane::Pane(QWidget *parent)
     setWindowState(windowState() ^ Qt::WindowMaximized);
     setFrameShape(QFrame::NoFrame);
     setScene(m_scene);
+
+    m_file = new QFile("curve.csv", this);
+    if (m_file->open(QIODevice::WriteOnly | QIODevice::Text | QIODevice::Truncate)) {
+        m_out.setDevice(m_file);
+    } else {
+        qWarning("Failed to open file for writing");
+    }
 }
 
 Pane::~Pane()
 {
+    m_file->close();
 }
 
 bool Pane::eventFilter(QObject *obj, QEvent *event)
@@ -71,7 +81,12 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
 
         Q_ASSERT(mouseEvent);
 
-        m_points << mouseEvent->scenePos();
+        QPointF point = mouseEvent->scenePos();
+        m_out << point.x() << ","
+              << point.y() << ","
+              << QDateTime::currentMSecsSinceEpoch() << "\n";
+
+        m_points << point;
     }
         break;
     case QEvent::GraphicsSceneMouseMove: {
@@ -80,8 +95,13 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
 
         Q_ASSERT(mouseEvent);
 
-        addLine(m_points.last(), mouseEvent->scenePos(), Qt::yellow);
-        m_points << mouseEvent->scenePos();
+        QPointF point = mouseEvent->scenePos();
+        m_out << point.x() << ","
+              << point.y() << ","
+              << QDateTime::currentMSecsSinceEpoch() << "\n";
+
+        addLine(m_points.last(), point, Qt::yellow);
+        m_points << point;
     }
         break;
     case QEvent::GraphicsSceneMouseRelease: {
