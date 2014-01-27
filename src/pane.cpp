@@ -136,8 +136,14 @@ QVarLengthArray<qreal,128> Pane::direction(const PointArray<256> &points, bool d
         qreal sinA = df.y() / len;
 
         qreal angle1 = qAsin(sinA); /* [-M_PI/2 ; M_PI/2] */
-        if (df.x() < 0)
-            angle1 = (angle1 > 0 ? M_PI : -M_PI) - angle1; /* [-M_PI ; M_PI] */
+        if (df.x() < 0) {
+            angle1 = M_PI - angle1; /* [-M_PI/2 ; 3*M_PI/2] */
+        }
+        if (angle1 - angle0 > M_PI) {
+            angle1 = angle1 - 2 * M_PI;
+        } else if(angle0 - angle1 > M_PI) {
+            angle1 = angle1 + 2 * M_PI;
+        }
 
         if (derivative) {
             qreal da = angle1 - angle0; /* [-2*M_PI ; 2*M_PI] */

@@ -11,9 +11,11 @@ function A = angles(P)
   Q2 = diff(P);
   A = Q2(:,2) ./ sqrt(Q2(:,1).^2 + Q2(:,2).^2);
   A = asin(A);
-  A = (Q2(:,1) < 0) .* sign(A) * pi - A;
+  z = (Q2(:,1) < 0);
+  A(z) = pi - A(z);
   T = diff(A);
-  T = T - sign(T) .* floor(abs(T) / (2 * pi));
+  z = (abs(T) > pi);
+  T(z) = T(z) - 2 * pi * sign(T(z));
   A = cumsum(T);
   A = A / pi * 180;
 end
