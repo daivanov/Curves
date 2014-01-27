@@ -33,7 +33,7 @@ Pane::Pane(QWidget *parent)
     : QGraphicsView(parent),
     m_scene(new QGraphicsScene(this)),
     m_active(true),
-    tolerance(1e-5)
+    tolerance(2.0)
 {
     m_scene->setBackgroundBrush(Qt::black);
     m_scene->installEventFilter(this);
@@ -100,8 +100,13 @@ bool Pane::eventFilter(QObject *obj, QEvent *event)
               << point.y() << ","
               << QDateTime::currentMSecsSinceEpoch() << "\n";
 
-        addLine(m_points.last(), point, Qt::yellow);
-        m_points << point;
+        QPointF distance = m_points.last() - point;
+        /* Too close point breaks angle computation, so we just skip them */
+        if (distance.x() * distance.x() + distance.y() * distance.y() >=
+                tolerance * tolerance) {
+            addLine(m_points.last(), point, Qt::yellow);
+            m_points << point;
+        }
     }
         break;
     case QEvent::GraphicsSceneMouseRelease: {
@@ -128,8 +133,6 @@ QVarLengthArray<qreal,128> Pane::direction(const PointArray<256> &points, bool d
         QPointF p1(points.at(i));
         QPointF df = p1 - p0;
         qreal len = qSqrt(df.x() * df.x() + df.y() * df.y());
-        if (len < tolerance)
-            continue;
         qreal sinA = df.y() / len;
 
         qreal angle1 = qAsin(sinA); /* [-M_PI/2 ; M_PI/2] */
