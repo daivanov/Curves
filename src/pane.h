@@ -46,7 +46,12 @@ private:
     void addLine(const QPointF &point0, const QPointF &point1, const QColor &color);
 
     QVarLengthArray<qreal,128> direction(const PointArray<256> &points, bool derivative);
-    QVarLengthArray<int,128> detectSpikes(const QVarLengthArray<qreal,128> &directions, int tinySegment = 4);
+
+    QVarLengthArray<qreal,128> length(const PointArray<256> &points);
+    PointArray<256> derivative(const PointArray<256> &points);
+
+    QVarLengthArray<int,128> detectOutliers(const QVarLengthArray<qreal,128> &outliers,
+        qreal multiplier, int tinySegment = 4);
     void analyse();
 
     QFile *m_file;

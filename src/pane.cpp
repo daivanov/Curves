@@ -165,34 +165,67 @@ QVarLengthArray<qreal,128> Pane::direction(const PointArray<256> &points, bool d
     return angles;
 }
 
-QVarLengthArray<int,128> Pane::detectSpikes(const QVarLengthArray<qreal,128> &directions,
-    int tinySegment)
+QVarLengthArray<qreal,128> Pane::length(const PointArray<256> &points)
 {
-    int cnt = directions.count();
+    QVarLengthArray<qreal,128> lengths;
 
-    qreal mean = 0;
-    foreach (qreal direction, directions)
-        mean += direction / cnt;
-
-    qreal stddev = 0;
-    foreach (qreal direction, directions)
-        stddev += (direction - mean) * (direction - mean) / cnt;
-    stddev = qSqrt(stddev);
-
-    QVarLengthArray<int,128> spikes;
-    spikes << -1;
-    for (int i = 0; i < directions.count(); ++i) {
-        if (qAbs(directions.at(i) - mean) > stddev) {
-            if (i - spikes.at(spikes.count() - 1) > tinySegment)
-                spikes << i;
+    if (points.count() > 1) {
+        QPointF prev = points.at(0);
+        for (int i = 1; i < points.count(); ++i) {
+            QPointF curr = points.at(i);
+            QPointF vector = curr - prev;
+            lengths << qSqrt(vector.x() * vector.x() + vector.y() * vector.y());
+            prev = curr;
         }
     }
 
-    if ((directions.count() - 1) - spikes.at(spikes.count() - 1) < tinySegment)
-        spikes.remove(spikes.count() - 1);
-    spikes << directions.count() - 1;
+    return lengths;
+}
 
-    return spikes;
+PointArray<256> Pane::derivative(const PointArray<256> &points)
+{
+    PointArray<256> dpoints;
+
+    if (points.count() > 1) {
+        QPointF prev = points.at(0);
+        for (int i = 1; i < points.count(); ++i) {
+            QPointF curr = points.at(i);
+            dpoints << (curr - prev);
+            prev = curr;
+        }
+    }
+
+    return dpoints;
+}
+
+QVarLengthArray<int,128> Pane::detectOutliers(const QVarLengthArray<qreal,128> &values,
+    qreal multiplier, int tinySegment)
+{
+    int cnt = values.count();
+
+    qreal mean = 0;
+    foreach (qreal value, values)
+        mean += value / cnt;
+
+    qreal stddev = 0;
+    foreach (qreal value, values)
+        stddev += (value - mean) * (value - mean) / (cnt - 1);
+    stddev = qSqrt(stddev);
+
+    QVarLengthArray<int,128> outliers;
+    outliers << -1;
+    for (int i = 0; i < values.count(); ++i) {
+        if (qAbs(values.at(i) - mean) > multiplier * stddev) {
+            if (i - outliers.at(outliers.count() - 1) > tinySegment)
+                outliers << i;
+        }
+    }
+
+    if ((values.count() - 1) - outliers.at(outliers.count() - 1) < tinySegment)
+        outliers.remove(outliers.count() - 1);
+    outliers << values.count() - 1;
+
+    return outliers;
 }
 
 void Pane::addEllipse(const QPointF &point, const QColor &color)
@@ -211,8 +244,15 @@ void Pane::addLine(const QPointF &point0, const QPointF &point1, const QColor &c
 
 void Pane::analyse()
 {
-    QVarLengthArray<qreal,128> angles = direction(m_points, true);
-    QVarLengthArray<int,128> spikes = detectSpikes(angles);
+    PointArray<256> points1 = derivative(m_points);
+    PointArray<256> points2 = derivative(points1);
+    QVarLengthArray<qreal,128> stats = length(points2);
+    QVarLengthArray<int,128> outliers = detectOutliers(stats, 1.5);
+
+    /* Compensate double derivation */
+    for (int i = 1; i < outliers.count(); ++i) {
+        outliers[i] += 2;
+    }
 
     CurveFitter fitter;
     PointArray<256> segment;
@@ -221,7 +261,7 @@ void Pane::analyse()
         segment << m_points.at(i);
 
         /* End of segment reached */
-        if (spikes[k] + 1 == i) {
+        if (outliers[k] + 1 == i) {
             PointArray<256> curve;
             fitter.fit(segment, curve, CurveFitter::AFFINE);
 
@@ -244,8 +284,8 @@ void Pane::analyse()
         }
     }
 
-    foreach (int spike, spikes) {
-        QPointF point = m_points.at(spike + 1);
+    foreach (int outlier, outliers) {
+        QPointF point = m_points.at(outlier + 1);
         addEllipse(point, Qt::red);
     }
 }
